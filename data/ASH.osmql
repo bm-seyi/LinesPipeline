@@ -1,0 +1,8 @@
+[out:json][timeout:25];
+(
+  way["ref:GB:tfgm"="ASL"];
+);
+(._; >;);
+out body;
+>;
+out skel qt;

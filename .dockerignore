@@ -1,0 +1,9 @@
+.env
+__pycache__/
+.vscode/
+.github/
+.gitignore
+LICENSE
+venv/
+*.MD
+*.bat
