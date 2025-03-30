@@ -1,0 +1,16 @@
+services:
+  opm:
+    image: opm
+    container_name: opm
+    restart: "no"
+    networks:
+      - tms_network
+    env_file:
+      - .env
+    environment:
+      - connString=${containerConnectionString}
+
+networks:
+  tms_network:
+    name: tms_network
+    external: true

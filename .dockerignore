@@ -7,3 +7,4 @@ LICENSE
 venv/
 *.MD
 *.bat
+.git/
