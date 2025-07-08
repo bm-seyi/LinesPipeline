@@ -1,6 +1,6 @@
 from ..functions import *
 
-def main(data: list, LineCode: str, engine: Engine, LogID: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+def main(data: list, LineCode: str, engine: Engine) -> pd.DataFrame:
     start: float = time()  
     print(f"--- TRANSFORM ({LineCode}) ---")
     try: 
@@ -10,35 +10,19 @@ def main(data: list, LineCode: str, engine: Engine, LogID: str) -> tuple[pd.Data
 
         df.drop(["type", "nodes", "tags"], axis=1, inplace=True)
 
+        for col in df.columns:
+            df[col] = process_column(df[col])
+        
         with engine.connect() as conn:
-            tms: pd.DataFrame = pd.read_sql_query(f"SELECT * FROM [dbo].[Lines] WHERE [LineCode] = '{LineCode}'", conn)
-
-            df.columns = tms.columns[1:-1]
-
-            for col in df.columns:
-                df[col] = process_column(df[col])
-
-            df["Id"] = [
-                str(uuid5(uuidNamespace, f"{row.latitude}{row.longitude}{row.LineCode}")).upper() 
-                for row in df.itertuples(index=False)
-            ]
-            df["LogId"] = LogID
-
-            update_merge_df: pd.DataFrame = pd.merge(tms, df, on=df.columns[:-1].to_list(), how="outer", indicator=True, suffixes=("_Greenwood", ""))
-            update_df: pd.DataFrame = update_merge_df[update_merge_df["Id"].isin(tms["Id"].unique())]
-
-            merged_df: pd.DataFrame = pd.merge(tms, df, how="outer", on="Id",  indicator=True, suffixes=("_Greenwood", ""))
-
-            update_records: pd.DataFrame = merging(update_df)
-            insert_records: pd.DataFrame = merging(merged_df)
-
-            action_log(None, start, "Transform", "Success", LogID, conn)
+            actionLog(None, start, "Transform", "Success", conn)
             conn.commit()
 
-        return insert_records, update_records
+        return df
     
     except:
+        error: str = traceback.format_exc()
+        print(error)
         with engine.connect() as conn:
-            action_log(traceback.format_exc(), start, "Transform", "Fail", LogID, conn)
+            actionLog(error, start, "Transform", "Fail", conn)
             conn.commit()
-        sys.exit(1)
+        sys.exit(1)    
