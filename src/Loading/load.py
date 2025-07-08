@@ -1,33 +1,51 @@
 from ..functions import *
 
-def main(insert_df: pd.DataFrame, update_df: pd.DataFrame, LogID: str, LineCode: str, engine: Engine) -> None:
-    start: float = time()
-    print(f"--- LOAD ({LineCode}) ---")
+
+def main(df: pd.DataFrame, engine: Engine):
+    start = time()
+    print("--- LOAD ---")
     try:
-        with engine.connect() as conn:
-            if insert_df.empty:
-                print("NO RECORDS TO INSERT")
+            if df.empty:
+                print("NO RECORDS TO INSERT/UPDATE")
             else:
-                query: str = f"INSERT INTO [dbo].[Lines] ({",".join([f"[{col}]" for col in insert_df.columns])}) VALUES ({", ".join(f":{col}" for col in insert_df.columns)})"
-                execute(query, insert_df, "[dbo].[Lines]",conn,True)
-            
+                batch_size = 50000
+                total_records = len(df)
+                processed_records = 0
 
-            if update_df.empty:
-                print("NO RECORDS TO UPDATE")
-            else:
-                columns: list[str] = [f"[{col}] = :{col}" for col in update_df if col != "Id"]
-                query = text(f"UPDATE [dbo].[Lines] SET {", ".join(columns)} WHERE [Id] = :{"Id"}")
-                for index, row in update_df.iterrows():
-                    conn.execute(query, row.to_dict())
-                    print(f"{"Id"}: {row["Id"]} --- UPDATED")
-                    print(f"Row: {index + 1} of {update_df.shape[0]} --- [dbo].[Lines]")
-               
+                while processed_records < total_records:
+                    with engine.connect() as conn:
+                        batch = df.iloc[processed_records:processed_records + batch_size]
+                        
+                        print(f"#temp: LOADING BATCH {processed_records + 1} to {min(processed_records + batch_size, total_records)}")
+                        
+                        # Load the batch into the temp table
+                        batch.to_sql("#temp", conn, index=False)
+                        
+                        print("#temp: LOADED")
+                        
+                        print("EXECUTING PROCEDURE: pro_lines")
+                        conn.execute(text("EXEC pro_lines"))
+                        print("EXECUTED PROCEDURE: pro_lines")
 
-            action_log(None, start, "Load", "Success", LogID, conn)
-            conn.commit()
+                        print("DROPPING #temp")
+                        conn.execute(text("DROP TABLE #temp"))
+                        print("DROPPED #temp")
+
+                        conn.commit()
+                        conn.close()
+
+                        processed_records += len(batch)
+                        print(f"Processed {processed_records} of {total_records} records")
+
+    
+            with engine.connect() as conn:
+                actionLog(None, start, "Load", "Success", conn)
+                conn.commit()
 
     except:
+        error: str = traceback.format_exc()
+        print(error)
         with engine.connect() as conn:
-            action_log(traceback.format_exc(), start, "Load", "Fail", LogID, conn)
+            actionLog(error, start, "Load", "Fail", conn)
             conn.commit()
         sys.exit(1)
