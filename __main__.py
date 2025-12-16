@@ -2,20 +2,26 @@ from src.Extraction import extract
 from src.Transformation import transform
 from src.Loading import load
 from src.functions import *
-import atexit
+import polars as pl
 
 def main():
-    engine: Engine = create_engine(connString, pool_size=10, max_overflow=5, pool_timeout=30, pool_recycle=1800)
-    atexit.register(lambda: engine.dispose())
+    try:
+        files = [file for file in listdir("data") if path.isfile(path.join("data", file))]
+        print("---EXTRACT---")
+        for file in files:
+            lineCode: str = file[:3]
+            extract.main(file, lineCode)
+            sleep(5)
 
-    files = [file for file in listdir("data") if path.isfile(path.join("data", file))]
-
-    for file in files:
-        lineCode: str = file[:3]
-        extraction: list = extract.main(file, engine)
-        df: pd.DataFrame = transform.main(extraction, lineCode, engine)
-        load.main(df, lineCode, engine)
+        df: pl.DataFrame = transform.main(lineCode)
+        load.main(df, lineCode)
         sleep(10)
+
+    except:
+        error: str = traceback.format_exc()
+        print(error)
+
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

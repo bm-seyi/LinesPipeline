@@ -1,6 +1,6 @@
 [out:json][timeout:25];
 (
-  way["ref:GB:tfgm"="APL"];
+  way["ref:GB:tfgm"='APL'];
 );
 (._; >;);
 out body;

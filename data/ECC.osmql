@@ -1,6 +1,6 @@
 [out:json][timeout:25];
 (
-  way["ref:GB:tfgm"="ECL"];
+  way["ref:GB:tfgm"='ECL'];
 );
 (._; >;);
 out body;

@@ -1,51 +1,33 @@
-from ..functions import *
+from .. import functions
+from polars import DataFrame
+import pyodbc as py
 
-
-def main(df: pd.DataFrame, engine: Engine):
-    start = time()
+def main(df: DataFrame):
     print("--- LOAD ---")
-    try:
-            if df.empty:
-                print("NO RECORDS TO INSERT/UPDATE")
-            else:
-                batch_size = 50000
-                total_records = len(df)
-                processed_records = 0
-
-                while processed_records < total_records:
-                    with engine.connect() as conn:
-                        batch = df.iloc[processed_records:processed_records + batch_size]
-                        
-                        print(f"#temp: LOADING BATCH {processed_records + 1} to {min(processed_records + batch_size, total_records)}")
-                        
-                        # Load the batch into the temp table
-                        batch.to_sql("#temp", conn, index=False)
-                        
-                        print("#temp: LOADED")
-                        
-                        print("EXECUTING PROCEDURE: pro_lines")
-                        conn.execute(text("EXEC pro_lines"))
-                        print("EXECUTED PROCEDURE: pro_lines")
-
-                        print("DROPPING #temp")
-                        conn.execute(text("DROP TABLE #temp"))
-                        print("DROPPED #temp")
-
-                        conn.commit()
-                        conn.close()
-
-                        processed_records += len(batch)
-                        print(f"Processed {processed_records} of {total_records} records")
-
+    query: str = f"INSERT INTO #temp ({",".join([f"[{col}]" for col in df.columns])}) VALUES ({", ".join(["?" for _ in df.columns])})"
     
-            with engine.connect() as conn:
-                actionLog(None, start, "Load", "Success", conn)
-                conn.commit()
+    with py.connect(functions.CONNECTION_STRING) as conn:
+        if not df.is_empty():
+            try:
+                with open("temp.sql", "r") as f:
+                    conn.execute(f.read())
+                
+                cursor = conn.cursor()
+                cursor.fast_executemany = True
 
-    except:
-        error: str = traceback.format_exc()
-        print(error)
-        with engine.connect() as conn:
-            actionLog(error, start, "Load", "Fail", conn)
-            conn.commit()
-        sys.exit(1)
+                cursor.executemany(query, df.rows())
+
+                conn.execute("EXEC usp_opm_lines")
+           
+            except Exception:
+                conn.rollback()
+                raise
+        else:
+            print("NO RECORDS TO INSERT/UPDATE")
+
+        conn.commit()
+
+
+
+  
+
