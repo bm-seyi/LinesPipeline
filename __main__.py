@@ -1,8 +1,17 @@
 from src.Extraction import extract
 from src.Transformation import transform
 from src.Loading import load
-from src.functions import *
+from time import sleep
+from os import listdir, path, environ
 import polars as pl
+import traceback
+import sys
+from dotenv import load_dotenv
+import mssql_python as ms
+
+
+load_dotenv()
+
 
 def main():
     try:
@@ -11,11 +20,10 @@ def main():
         for file in files:
             lineCode: str = file[:3]
             extract.main(file, lineCode)
-            sleep(5)
+            sleep(25)
 
-        df: pl.DataFrame = transform.main(lineCode)
-        load.main(df, lineCode)
-        sleep(10)
+        df: pl.DataFrame = transform.main()
+        load.main(df)
 
     except:
         error: str = traceback.format_exc()

@@ -1,0 +1,6 @@
+CREATE TABLE #temp (
+    [id] VARCHAR(255) NOT NULL,
+    [lat] DECIMAL(10,7) NOT NULL,
+    [lon] DECIMAL(10,7) NOT NULL,
+    [LineCode] VARCHAR(255) NOT NULL,
+) 
